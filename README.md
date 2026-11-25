@@ -1,0 +1,1 @@
+# resmi_gazete
