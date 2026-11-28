@@ -1,0 +1,38 @@
+name: Resmi Gazete erisim testi
+
+# One-off check: can GitHub's runners read resmigazete.gov.tr? Runs when this file is pushed and can be started by hand.
+on:
+  push:
+    paths:
+      - '.github/workflows/erisim-testi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resmi Gazete erisim denemeleri
+        run: |
+          set +e
+          ok=0; fail=0
+          check() {
+            code=$(curl -sS -m 40 -o /tmp/out -w "%{http_code} %{size_download}B %{time_total}s" -A "Mozilla/5.0 Tariflex-RGSync/2.0" "$1" 2>/tmp/err)
+            rc=$?
+            echo "$1 -> rc=$rc $code $(head -c 160 /tmp/err)"
+            if [ "$rc" = 0 ] && [ "${code%% *}" = 200 ]; then ok=$((ok+1)); else fail=$((fail+1)); fi
+          }
+          check https://www.resmigazete.gov.tr/eskiler/2026/11/20261128.htm
+          check https://www.resmigazete.gov.tr/eskiler/2026/07/20260711-37.htm
+          check https://www.resmigazete.gov.tr/eskiler/2026/07/20260711-37_dosyalar/image002.jpg
+          check "https://www.resmigazete.gov.tr/fihrist?tarih=2026-11-27"
+          check https://www.resmigazete.gov.tr/
+          echo "::notice title=Resmi Gazete erisimi::basarili=$ok basarisiz=$fail"
+          echo "### Resmi Gazete erisimi: basarili $ok / basarisiz $fail" >> "$GITHUB_STEP_SUMMARY"
+          php -v | head -1
+          php -m | grep -Ei '^(curl|sqlite3|openssl|mbstring|dom|zip)$' | tr '\n' ' '
+          echo
+          [ "$fail" = 0 ]
