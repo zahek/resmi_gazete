@@ -1,0 +1,57 @@
+name: Gazette feed
+
+# Builds and signs the Resmi Gazete feed so the owner's PC is not needed. The live site (which cannot reach resmigazete.gov.tr)
+# downloads gazette-feed.json and gazette-feed.sig from this repository and verifies the signature before use.
+# Times are UTC: 06:30 = 09:30 Turkey, 18:00 = 21:00 Turkey (picks up supplementary issues published later in the day).
+on:
+  schedule:
+    - cron: '30 6 * * *'
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gazette-feed
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli php-curl php-xml php-mbstring
+          php -v | head -1
+
+      - name: Build and sign the feed
+        env:
+          GAZETTE_SIGNING_KEY: ${{ secrets.GAZETTE_SIGNING_KEY }}
+        run: |
+          set +e
+          php ci/gazette_export_ci.php
+          code=$?
+          echo "export exit code: $code"
+          # 0 = every day present, 2 = some days could not be read (the feed is still valid and published)
+          if [ "$code" -gt 2 ]; then exit "$code"; fi
+          if [ "$code" -eq 2 ]; then echo "::warning title=Gazette feed::Some days could not be read; see the log above."; fi
+          exit 0
+
+      - name: Publish
+        run: |
+          git config user.name "tariflex-gazette-bot"
+          git config user.email "tariflex-gazette-bot@users.noreply.github.com"
+          git add gazette-feed.json gazette-feed.sig
+          if git diff --cached --quiet; then
+            echo "Feed unchanged; nothing to publish."
+          else
+            git commit -q -m "Gazette feed $(TZ=Europe/Istanbul date '+%Y-%m-%d %H:%M') (GitHub Actions)"
+            git pull --rebase -q
+            git push -q
+            echo "Feed published."
+          fi

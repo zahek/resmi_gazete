@@ -29,6 +29,7 @@ jobs:
           check https://www.resmigazete.gov.tr/eskiler/2026/07/20260711-37.htm
           check https://www.resmigazete.gov.tr/eskiler/2026/07/20260711-37_dosyalar/image002.jpg
           check "https://www.resmigazete.gov.tr/fihrist?tarih=2026-11-27"
+          check https://resmigazete.gov.tr/eskiler/2026/11/20261128.htm
           check https://www.resmigazete.gov.tr/
           echo "::notice title=Resmi Gazete erisimi::basarili=$ok basarisiz=$fail"
           echo "### Resmi Gazete erisimi: basarili $ok / basarisiz $fail" >> "$GITHUB_STEP_SUMMARY"
